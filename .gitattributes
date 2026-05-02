@@ -1,0 +1,11 @@
+# binarybeachio: shell scripts, Jinja templates, and Dockerfiles that get
+# executed (or built into) inside the Linux container MUST stay LF-terminated,
+# regardless of the cloning host's core.autocrlf setting. Without this, a
+# Windows clone with core.autocrlf=true converts these to CRLF; a shebang
+# becomes `#!/bin/sh\r` (invalid path), and the container crashloops with the
+# misleading `exec /start.sh: no such file or directory`. The bb-vaultwarden-fork
+# `mine.1` build burned us this way 2026-04-30 — pin LF as a pre-flight on
+# every bb-* fork.
+*.sh text eol=lf
+*.j2 text eol=lf
+Dockerfile* text eol=lf
