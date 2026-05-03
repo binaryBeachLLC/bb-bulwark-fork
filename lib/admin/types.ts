@@ -128,6 +128,7 @@ export const CONFIG_ENV_MAP: Record<string, { envVar: string; fileEnvVar?: strin
   oauthClientId: { envVar: 'OAUTH_CLIENT_ID', type: 'string', defaultValue: '' },
   oauthClientSecret: { envVar: 'OAUTH_CLIENT_SECRET', fileEnvVar: 'OAUTH_CLIENT_SECRET_FILE', type: 'string', defaultValue: '' },
   oauthIssuerUrl: { envVar: 'OAUTH_ISSUER_URL', type: 'url', defaultValue: '' },
+  oauthAuthPrompt: { envVar: 'OAUTH_AUTH_PROMPT', type: 'string', defaultValue: '' },
   allowCustomJmapEndpoint: { envVar: 'ALLOW_CUSTOM_JMAP_ENDPOINT', type: 'boolean', defaultValue: false },
   autoSsoEnabled: { envVar: 'AUTO_SSO_ENABLED', type: 'boolean', defaultValue: false },
   cookieSameSite: { envVar: 'COOKIE_SAME_SITE', type: 'enum', defaultValue: 'lax', enumValues: ['lax', 'strict', 'none'] },

@@ -34,6 +34,7 @@ export async function GET() {
     oauthOnly,
     oauthClientId: configManager.get<string>('oauthClientId', ''),
     oauthIssuerUrl: configManager.get<string>('oauthIssuerUrl', ''),
+    oauthAuthPrompt: configManager.get<string>('oauthAuthPrompt', ''),
     rememberMeEnabled: !!process.env.SESSION_SECRET || !!readFileEnv(process.env.SESSION_SECRET_FILE),
     settingsSyncEnabled: configManager.get<boolean>('settingsSyncEnabled', false) && (!!process.env.SESSION_SECRET || !!readFileEnv(process.env.SESSION_SECRET_FILE)),
     stalwartFeaturesEnabled,

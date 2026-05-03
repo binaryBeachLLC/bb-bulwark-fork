@@ -27,13 +27,17 @@ If you're reading this on a future merge from upstream, the [Refresh from upstre
 
 ## What's customized
 
-Three files. Total: ~60 lines.
+Seven files. Total: ~80 lines.
 
 | File | Change | Lines | Conflict risk on upgrade |
 |------|--------|-------|--------------------------|
 | `.gitattributes` | Pin `*.sh`, `*.j2`, `Dockerfile*` to LF eol so Windows clones don't crashloop the container | ~10 | None — upstream has no `.gitattributes` of its own |
-| `BINARYBEACHIO.md` | This file | ~70 | None — net-new file |
-| `app/api/auth/sso/start/route.ts` | Forward optional `OAUTH_AUTH_PROMPT` env into the OIDC authorize URL as the standard `prompt` parameter. Lets the deployment force Zitadel's account picker (`prompt=select_account`) even when a session exists, which is the only way Bulwark's "+ Add Account" flow can switch identities against an IdP the browser is already signed into. Upstream omits the parameter entirely. | ~5 | Low — sits in the auth URL builder, simple addition. If upstream ever adds the same env, drop our patch. |
+| `BINARYBEACHIO.md` | This file | ~80 | None — net-new file |
+| `app/api/auth/sso/start/route.ts` | Forward optional `OAUTH_AUTH_PROMPT` env into the OIDC authorize URL as the standard `prompt` parameter. Lets the deployment force Zitadel's account picker (`prompt=select_account`) even when a session exists, which is the only way Bulwark's "+ Add Account" flow can switch identities against an IdP the browser is already signed into. Upstream omits the parameter entirely. Note: this server-side route only fires in `OAUTH_ONLY=true && AUTO_SSO_ENABLED=true` mode. The interactive sign-in path (login form's "Sign in with SSO" button + "+ Add Account") is patched separately on the client side — see the four entries below. | ~5 | Low — sits in the auth URL builder, simple addition. If upstream ever adds the same env, drop our patch. |
+| `lib/admin/types.ts` | Add `oauthAuthPrompt` (env `OAUTH_AUTH_PROMPT`) to `CONFIG_ENV_MAP` so the env is recognized by the admin config layer and admin-dashboard overrides work. | ~1 | Low — one new line in a record literal. |
+| `app/api/config/route.ts` | Expose `oauthAuthPrompt` on the `/api/config` JSON the browser fetches at boot. Required for the client-side login flow to know about the env. | ~1 | Low — one new field. |
+| `hooks/use-config.ts` | Add `oauthAuthPrompt: string` to the `ConfigData` type and the three `setConfig({...})` initializers in `useConfig()`. | ~5 | Low — boilerplate next to existing OIDC fields. |
+| `app/[locale]/login/page.tsx` | In `handleOAuthLogin` (the client-side authorize-URL builder used by the "Sign in with SSO" button on the login form **and** the "+ Add Account" flow), append `prompt=<oauthAuthPrompt>` if the env is set. Sister patch to `app/api/auth/sso/start/route.ts` — that one covers `OAUTH_ONLY` auto-redirect; this one covers interactive sign-in. | ~10 | Low — sits in the URL builder right before `window.location.href`. |
 
 ## Why we forked despite no patches
 
@@ -48,7 +52,8 @@ This was a deliberate choice. Vanilla Path A (pulling `ghcr.io/bulwarkmail/webma
 | Tag | Status | What changed |
 |---|---|---|
 | `v1.6.0-mine.1` | superseded | Initial fork tag. No source-level patches; adds `.gitattributes` (LF pin) + `BINARYBEACHIO.md`. Build pipeline established. |
-| `v1.6.0-mine.2` | active | First functional patch: `OAUTH_AUTH_PROMPT` env forwarded into the OIDC `prompt` param. Used to force Zitadel's account picker on every sign-in so Bulwark's multi-account UI ("+ Add Account") can switch identities cleanly. |
+| `v1.6.0-mine.2` | superseded | First functional patch: `OAUTH_AUTH_PROMPT` env forwarded into the OIDC `prompt` param via the **server-side** SSO start route (`app/api/auth/sso/start/route.ts`). Discovered post-deploy that this route only fires in `OAUTH_ONLY=true && AUTO_SSO_ENABLED=true` auto-redirect mode, so the env was inert for our deployment (which runs `OAUTH_ONLY=false` to keep the local-password break-glass surface). |
+| `v1.6.0-mine.3` | active | Extends `OAUTH_AUTH_PROMPT` to the **client-side** authorize-URL builder (`handleOAuthLogin` in `app/[locale]/login/page.tsx`) — the path actually used by the login-form "Sign in with SSO" button and the "+ Add Account" flow. Plumbing: env → `CONFIG_ENV_MAP` → `/api/config` JSON → `useConfig()` → `handleOAuthLogin`. Sister patch to mine.2's server-side change; both stay in tree because both code paths exist in upstream. |
 
 ## Refresh from upstream
 

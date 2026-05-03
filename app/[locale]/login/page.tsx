@@ -69,7 +69,7 @@ export default function LoginPage() {
   const isAddAccountMode = searchParams.get("mode") === "add-account";
   const { login, loginDemo, isLoading, error, clearError, isAuthenticated } = useAuthStore();
   const { theme, setTheme, initializeTheme } = useThemeStore(useShallow((s) => ({ theme: s.theme, setTheme: s.setTheme, initializeTheme: s.initializeTheme })));
-  const { appName, jmapServerUrl: serverUrl, oauthEnabled, oauthOnly, oauthClientId, oauthIssuerUrl, rememberMeEnabled, devMode, demoMode, loginLogoLightUrl, loginLogoDarkUrl, loginCompanyName, loginImprintUrl, loginPrivacyPolicyUrl, loginWebsiteUrl, isLoading: configLoading, error: configError, autoSsoEnabled, embeddedMode: _embeddedMode, allowCustomJmapEndpoint } = useConfig();
+  const { appName, jmapServerUrl: serverUrl, oauthEnabled, oauthOnly, oauthClientId, oauthIssuerUrl, oauthAuthPrompt, rememberMeEnabled, devMode, demoMode, loginLogoLightUrl, loginLogoDarkUrl, loginCompanyName, loginImprintUrl, loginPrivacyPolicyUrl, loginWebsiteUrl, isLoading: configLoading, error: configError, autoSsoEnabled, embeddedMode: _embeddedMode, allowCustomJmapEndpoint } = useConfig();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
 
   const [formData, setFormData] = useState({
@@ -429,6 +429,15 @@ export default function LoginPage() {
     authUrl.searchParams.set("state", state);
     authUrl.searchParams.set("code_challenge", challenge);
     authUrl.searchParams.set("code_challenge_method", "S256");
+
+    // binarybeachio: forward optional OAUTH_AUTH_PROMPT (sourced via /api/config)
+    // so the IdP shows an account picker (`select_account`) or forces re-auth
+    // (`login`). Required for "+ Add Account" multi-account UX against an IdP
+    // the browser already has a session with. Mirrors the patch in
+    // app/api/auth/sso/start/route.ts which only fires in OAUTH_ONLY+autoSso mode.
+    if (oauthAuthPrompt) {
+      authUrl.searchParams.set("prompt", oauthAuthPrompt);
+    }
 
     window.location.href = authUrl.toString();
   };
