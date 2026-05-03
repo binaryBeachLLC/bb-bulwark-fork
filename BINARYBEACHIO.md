@@ -27,14 +27,13 @@ If you're reading this on a future merge from upstream, the [Refresh from upstre
 
 ## What's customized
 
-Two files. Total: ~50 lines of text — zero source-level patches.
+Three files. Total: ~60 lines.
 
 | File | Change | Lines | Conflict risk on upgrade |
 |------|--------|-------|--------------------------|
 | `.gitattributes` | Pin `*.sh`, `*.j2`, `Dockerfile*` to LF eol so Windows clones don't crashloop the container | ~10 | None — upstream has no `.gitattributes` of its own |
 | `BINARYBEACHIO.md` | This file | ~70 | None — net-new file |
-
-If/when patches land on top of v1.6.0, list them here with the same shape as `bb-vaultwarden-fork/BINARYBEACHIO.md`'s `## What's customized` table.
+| `app/api/auth/sso/start/route.ts` | Forward optional `OAUTH_AUTH_PROMPT` env into the OIDC authorize URL as the standard `prompt` parameter. Lets the deployment force Zitadel's account picker (`prompt=select_account`) even when a session exists, which is the only way Bulwark's "+ Add Account" flow can switch identities against an IdP the browser is already signed into. Upstream omits the parameter entirely. | ~5 | Low — sits in the auth URL builder, simple addition. If upstream ever adds the same env, drop our patch. |
 
 ## Why we forked despite no patches
 
@@ -48,7 +47,8 @@ This was a deliberate choice. Vanilla Path A (pulling `ghcr.io/bulwarkmail/webma
 
 | Tag | Status | What changed |
 |---|---|---|
-| `v1.6.0-mine.1` | active | Initial fork tag. No source-level patches; adds `.gitattributes` (LF pin) + `BINARYBEACHIO.md`. Build pipeline established. |
+| `v1.6.0-mine.1` | superseded | Initial fork tag. No source-level patches; adds `.gitattributes` (LF pin) + `BINARYBEACHIO.md`. Build pipeline established. |
+| `v1.6.0-mine.2` | active | First functional patch: `OAUTH_AUTH_PROMPT` env forwarded into the OIDC `prompt` param. Used to force Zitadel's account picker on every sign-in so Bulwark's multi-account UI ("+ Add Account") can switch identities cleanly. |
 
 ## Refresh from upstream
 

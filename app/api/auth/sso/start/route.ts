@@ -74,6 +74,16 @@ export async function POST(request: NextRequest) {
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
 
+    // binarybeachio: forward an optional OAUTH_AUTH_PROMPT env to the IdP
+    // so deployments can force `prompt=select_account` (account picker even
+    // when a session exists — the use-case for Bulwark's "+ Add Account"
+    // flow against Zitadel) or `prompt=login` (force credential re-entry).
+    // Standard OIDC parameter; Zitadel honors it. Inert when env is unset.
+    const promptParam = process.env.OAUTH_AUTH_PROMPT;
+    if (promptParam) {
+      authUrl.searchParams.set('prompt', promptParam);
+    }
+
     if (locale) {
       authUrl.searchParams.set('ui_locales', locale);
     }
