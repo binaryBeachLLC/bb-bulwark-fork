@@ -601,12 +601,21 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null, isRateLimited: false, rateLimitUntil: null });
 
         try {
-          // Determine slot for this account (use slot from sessionStorage if re-adding)
+          // Determine slot for this account.
+          // binarybeachio (mine.6): upstream's `parseInt(getItem(...) || '0')`
+          // collapsed "no value set" and "value=0" into the same case, so every
+          // OAuth flow used slot 0 — including the "+ Add Account" path, which
+          // overwrote the first account's refresh-token cookie. Now `handleOAuthLogin`
+          // writes the next-free slot to sessionStorage before redirecting to the
+          // IdP; here we use it if present, else fall back to live next-free.
           const accountStore = useAccountStore.getState();
-          const pendingSlot = typeof window !== 'undefined'
-            ? parseInt(sessionStorage.getItem('oauth_cookie_slot') || '0', 10)
-            : 0;
-          const slot = pendingSlot >= 0 && pendingSlot <= 4 ? pendingSlot : accountStore.getNextCookieSlot();
+          const rawSlot = typeof window !== 'undefined'
+            ? sessionStorage.getItem('oauth_cookie_slot')
+            : null;
+          const pendingSlot = rawSlot !== null ? parseInt(rawSlot, 10) : NaN;
+          const slot = !isNaN(pendingSlot) && pendingSlot >= 0 && pendingSlot <= 4
+            ? pendingSlot
+            : accountStore.getNextCookieSlot();
 
           const tokenRes = await apiFetch(`/api/auth/token?slot=${slot}`, {
             method: 'POST',
@@ -718,12 +727,19 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null, isRateLimited: false, rateLimitUntil: null });
 
         try {
-          // Server-side SSO: the server holds the PKCE verifier in an encrypted cookie
+          // binarybeachio (mine.6): pass the next-free cookie slot so the
+          // server-side SSO complete endpoint writes the refresh token to the
+          // correct jmap_rt_<slot> cookie. Upstream's sso/complete hardcoded
+          // slot 0, which broke "+ Add Account" by overwriting the first
+          // account's refresh-token cookie.
+          const accountStore = useAccountStore.getState();
+          const slot = accountStore.getNextCookieSlot();
+
           const ssoRes = await apiFetch('/api/auth/sso/complete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ code, state }),
+            body: JSON.stringify({ code, state, slot }),
           });
 
           if (!ssoRes.ok) {
@@ -740,8 +756,6 @@ export const useAuthStore = create<AuthState>()(
           if (!ssoServerUrl) {
             throw new Error('Server URL not configured');
           }
-
-          const accountStore = useAccountStore.getState();
 
           const refreshFn = get().refreshAccessToken;
           const client = JMAPClient.withBearer(ssoServerUrl, access_token, '', () => refreshFn());
