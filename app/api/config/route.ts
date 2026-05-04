@@ -51,6 +51,7 @@ export async function GET() {
     demoMode: configManager.get<boolean>('demoMode', false),
     allowCustomJmapEndpoint: configManager.get<boolean>('allowCustomJmapEndpoint', false),
     autoSsoEnabled: configManager.get<boolean>('autoSsoEnabled', false),
+    disableAddAccount: configManager.get<boolean>('disableAddAccount', false),
     embeddedMode: !!allowedFrameAncestors && allowedFrameAncestors !== "'none'",
     parentOrigin: configManager.get<string>('parentOrigin', ''),
   });

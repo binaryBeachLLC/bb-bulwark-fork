@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { getInitials, MAX_ACCOUNTS } from "@/lib/account-utils";
 import { cn } from "@/lib/utils";
 import { useRouter } from "@/i18n/navigation";
+import { useConfig } from "@/hooks/use-config";
 
 interface AccountSwitcherProps {
   /** "rail" = small avatar only (NavigationRail), "expanded" = avatar + name + email (Sidebar) */
@@ -47,6 +48,9 @@ export function AccountSwitcher({ variant = "rail", className }: AccountSwitcher
   const logout = useAuthStore((s) => s.logout);
   const logoutAll = useAuthStore((s) => s.logoutAll);
   const primaryIdentity = useAuthStore((s) => s.primaryIdentity);
+  // binarybeachio (mine.7): when DISABLE_ADD_ACCOUNT=true, the per-Bulwark
+  // multi-account UI is hidden. Multi-identity moves to the platform edge.
+  const { disableAddAccount } = useConfig();
 
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
@@ -216,8 +220,12 @@ export function AccountSwitcher({ variant = "rail", className }: AccountSwitcher
             })}
           </div>
 
-          {/* Separator + Add Account */}
-          {accounts.length < MAX_ACCOUNTS && (
+          {/* Separator + Add Account
+              binarybeachio (mine.7): hidden when DISABLE_ADD_ACCOUNT=true.
+              Per-Bulwark multi-account fights the oauth2-proxy edge gate
+              (one Zitadel session at the edge); use the platform-level
+              "Switch BinaryBeach.io account" affordance instead. */}
+          {!disableAddAccount && accounts.length < MAX_ACCOUNTS && (
             <div className="border-t border-border">
               <button
                 onClick={handleAddAccount}

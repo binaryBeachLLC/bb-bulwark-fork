@@ -131,6 +131,15 @@ export const CONFIG_ENV_MAP: Record<string, { envVar: string; fileEnvVar?: strin
   oauthAuthPrompt: { envVar: 'OAUTH_AUTH_PROMPT', type: 'string', defaultValue: '' },
   allowCustomJmapEndpoint: { envVar: 'ALLOW_CUSTOM_JMAP_ENDPOINT', type: 'boolean', defaultValue: false },
   autoSsoEnabled: { envVar: 'AUTO_SSO_ENABLED', type: 'boolean', defaultValue: false },
+  // binarybeachio (mine.7): when true, the per-Bulwark-instance "+ Add
+  // Account" UI is hidden in the account switcher and the /login?mode=add-account
+  // route is treated as a normal login (auto-SSO still fires). The platform
+  // architecture moves multi-identity to the edge: a single oauth2-proxy
+  // session per Bulwark instance, with a "Switch BinaryBeach.io account"
+  // affordance at the platform level that calls /oauth2/sign_out then
+  // /oauth2/start?prompt=select_account on the auth-proxy host. Inert
+  // when unset (defaults to false = upstream behavior).
+  disableAddAccount: { envVar: 'DISABLE_ADD_ACCOUNT', type: 'boolean', defaultValue: false },
   cookieSameSite: { envVar: 'COOKIE_SAME_SITE', type: 'enum', defaultValue: 'lax', enumValues: ['lax', 'strict', 'none'] },
   allowedFrameAncestors: { envVar: 'ALLOWED_FRAME_ANCESTORS', type: 'string', defaultValue: '' },
   parentOrigin: { envVar: 'NEXT_PUBLIC_PARENT_ORIGIN', type: 'string', defaultValue: '' },

@@ -27,6 +27,11 @@ interface ConfigData {
   loginWebsiteUrl: string;
   demoMode: boolean;
   autoSsoEnabled: boolean;
+  // binarybeachio (mine.7): when true, the per-Bulwark "+ Add Account"
+  // affordance is hidden. Multi-identity moves to the platform edge
+  // (oauth2-proxy + a "Switch BinaryBeach.io account" link that triggers
+  // /oauth2/sign_out + /oauth2/start?prompt=select_account).
+  disableAddAccount: boolean;
   allowCustomJmapEndpoint: boolean;
   embeddedMode: boolean;
   parentOrigin: string;
@@ -104,6 +109,7 @@ export function useConfig(): AppConfig {
     loginWebsiteUrl: configCache?.loginWebsiteUrl || '',
     demoMode: configCache?.demoMode || false,
     autoSsoEnabled: configCache?.autoSsoEnabled || false,
+    disableAddAccount: configCache?.disableAddAccount || false,
     allowCustomJmapEndpoint: configCache?.allowCustomJmapEndpoint || false,
     embeddedMode: configCache?.embeddedMode || false,
     parentOrigin: configCache?.parentOrigin || '',
@@ -137,6 +143,7 @@ export function useConfig(): AppConfig {
         loginWebsiteUrl: configCache.loginWebsiteUrl,
         demoMode: configCache.demoMode,
         autoSsoEnabled: configCache.autoSsoEnabled,
+        disableAddAccount: configCache.disableAddAccount,
         allowCustomJmapEndpoint: configCache.allowCustomJmapEndpoint,
         embeddedMode: configCache.embeddedMode,
         parentOrigin: configCache.parentOrigin,
@@ -171,6 +178,7 @@ export function useConfig(): AppConfig {
           loginWebsiteUrl: data.loginWebsiteUrl,
           demoMode: data.demoMode,
           autoSsoEnabled: data.autoSsoEnabled,
+          disableAddAccount: data.disableAddAccount,
           allowCustomJmapEndpoint: data.allowCustomJmapEndpoint,
           embeddedMode: data.embeddedMode,
           parentOrigin: data.parentOrigin,
