@@ -24,12 +24,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing redirect_uri' }, { status: 400 });
     }
 
-    // Validate redirect_uri origin matches the request origin to prevent open redirects
-    const requestOrigin = request.headers.get('origin') || request.nextUrl.origin;
+    // Validate redirect_uri origin matches the request origin to prevent open redirects.
+    //
+    // binarybeachio: upstream uses `request.headers.get('origin') || request.nextUrl.origin`,
+    // which breaks behind a reverse proxy. `request.nextUrl.origin` resolves to the
+    // container's HOSTNAME:PORT bind address (e.g. `https://0.0.0.0:3000`), so any
+    // browser request that omits the Origin header (service-worker retries, certain
+    // same-origin POST cases) falls through to the bogus internal origin and is
+    // rejected — which, in Bulwark's auth-store, is treated as "session expired"
+    // and triggers a forced re-login loop. Coolify/Traefik (and most modern
+    // reverse proxies) send `X-Forwarded-Host` + `X-Forwarded-Proto`; trust those
+    // as the fallback. The actual security boundary is Zitadel's pre-registered
+    // redirect_uri allowlist, not this client-side hint.
+    const headerOrigin = request.headers.get('origin');
+    const forwardedHost = request.headers.get('x-forwarded-host');
+    const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+    const requestOrigin = headerOrigin
+      ?? (forwardedHost ? `${forwardedProto}://${forwardedHost}` : null)
+      ?? request.nextUrl.origin;
     try {
       const redirectOrigin = new URL(redirect_uri).origin;
       if (redirectOrigin !== requestOrigin) {
-        logger.warn('SSO start: redirect_uri origin mismatch', { redirectOrigin, requestOrigin });
+        logger.warn('SSO start: redirect_uri origin mismatch', { redirectOrigin, requestOrigin, headerOrigin, forwardedHost });
         return NextResponse.json({ error: 'Invalid redirect_uri' }, { status: 400 });
       }
     } catch {
