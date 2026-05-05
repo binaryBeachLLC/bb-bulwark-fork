@@ -2,6 +2,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import createIntlMiddleware from "next-intl/middleware";
 import { routing } from "./i18n/routing";
 import { getEnabledPluginFrameOrigins } from "./lib/admin/csp-frame-origins";
+import {
+  EDGE_SUB_COOKIE,
+  EDGE_HEADER,
+  edgeCookieOptions,
+} from "./lib/auth/bb-edge-identity";
+import { refreshTokenCookieName } from "./lib/oauth/tokens";
 
 const intlMiddleware = createIntlMiddleware(routing);
 
@@ -11,7 +17,98 @@ const intlMiddleware = createIntlMiddleware(routing);
 // requests for API routes, Next internals and static assets.
 const PROXY_SKIP_PATTERN = /^\/(?:api|_next)(?:\/|$)|\.[^/]+$/;
 
+// binarybeachio (mine.9): per-app edge-identity validation. The marker
+// cookie `_bb_edge_sub` is set at OIDC callback to the value of
+// X-Auth-Request-User; on every authenticated request we re-check that
+// the edge identity hasn't swapped under a still-valid Bulwark session.
+// Mismatch -> clear all session-bearing cookies and 302 to / so the SPA
+// reboots against the new edge identity. See
+// docs/conventions/per-app-edge-identity-validation.md.
+//
+// Skip-paths: the edge check runs BEFORE the existing PROXY_SKIP_PATTERN
+// short-circuit so it can guard /api/* state-bearing routes too. Routes
+// that mint or rotate the session itself (the OIDC handshake), the admin
+// password-gated surface (separate identity domain), the healthcheck, the
+// runtime config endpoint (read pre-login), and locale-prefixed login +
+// auth-callback pages all skip.
+const EDGE_SKIP_SEGMENT_PREFIXES: readonly string[] = [
+  "/_next",
+  "/favicon.ico",
+  "/robots.txt",
+  "/manifest.json",
+  "/sw.js",
+  "/branding",
+  "/public",
+  "/api/health",
+  "/api/config",
+  "/api/auth/sso/start",          // POST start (classic flow)
+  "/api/auth/sso/start-redirect", // GET start (bridge bypass; mine.8)
+  "/api/auth/sso/complete",
+  "/api/auth/token",              // POST mint, PUT refresh, DELETE revoke
+  "/api/auth/session",            // basic-auth break-glass session
+  "/api/admin",                   // admin uses its own password-gated session
+  "/admin",
+  "/jmap-proxy",                  // Stalwart bearer traffic, not Bulwark sessions
+  "/api/auth/stalwart-context",
+];
+
+const EDGE_SKIP_LOOSE_PREFIXES: readonly string[] = ["/workbox-"];
+
+const EDGE_LOCALE_PRE_AUTH_RE =
+  /^(?:\/[a-z]{2}(?:-[A-Z]{2})?)?\/(?:login|auth\/callback)(?:\/|$)/;
+
+function shouldSkipEdgeCheck(pathname: string): boolean {
+  if (EDGE_LOCALE_PRE_AUTH_RE.test(pathname)) return true;
+  for (const p of EDGE_SKIP_SEGMENT_PREFIXES) {
+    if (pathname === p || pathname.startsWith(p + "/")) return true;
+  }
+  for (const p of EDGE_SKIP_LOOSE_PREFIXES) {
+    if (pathname.startsWith(p)) return true;
+  }
+  return false;
+}
+
+function enforceEdgeIdentity(request: NextRequest): NextResponse | null {
+  if (shouldSkipEdgeCheck(request.nextUrl.pathname)) return null;
+
+  const edgeSub = request.headers.get(EDGE_HEADER);
+  if (!edgeSub) {
+    // No oauth2-proxy header — request didn't flow through the edge gate
+    // (mobile bearer-token, dev, or break-glass mode). Pass through.
+    return null;
+  }
+
+  const cookieSub = request.cookies.get(EDGE_SUB_COOKIE)?.value;
+
+  if (!cookieSub) {
+    // Legacy session minted before mine.9 OR the request hit a guarded
+    // path before the OIDC callback could pin the cookie. Lazy-populate
+    // so subsequent requests are guarded; don't force a re-login.
+    const res = NextResponse.next();
+    res.cookies.set(EDGE_SUB_COOKIE, edgeSub, edgeCookieOptions());
+    return res;
+  }
+
+  if (cookieSub === edgeSub) return null;
+
+  // Mismatch: edge identity has swapped (user invoked
+  // bridge.binarybeach.io/logout then signed back in as a different
+  // identity, OR the operator deactivated and recreated the user). Clear
+  // every Bulwark-side session cookie and bounce to `/` so the SPA reboots
+  // against the fresh edge identity. The bulwark-signin-redirect Traefik
+  // middleware will handle re-auth from there.
+  const res = NextResponse.redirect(new URL("/", request.url));
+  res.cookies.delete(EDGE_SUB_COOKIE);
+  for (let slot = 0; slot <= 4; slot++) {
+    res.cookies.delete(refreshTokenCookieName(slot));
+  }
+  return res;
+}
+
 export async function proxy(request: NextRequest) {
+  const edgeResponse = enforceEdgeIdentity(request);
+  if (edgeResponse) return edgeResponse;
+
   if (PROXY_SKIP_PATTERN.test(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
