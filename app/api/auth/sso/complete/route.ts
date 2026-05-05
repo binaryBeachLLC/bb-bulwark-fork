@@ -5,6 +5,7 @@ import { decryptPayload } from '@/lib/auth/crypto';
 import { exchangeCodeForTokens } from '@/lib/oauth/token-exchange';
 import { refreshTokenCookieName } from '@/lib/oauth/tokens';
 import { getCookieOptions } from '@/lib/oauth/cookie-config';
+import { EDGE_SUB_COOKIE, EDGE_HEADER, edgeCookieOptions } from '@/lib/auth/bb-edge-identity';
 
 const SSO_PENDING_COOKIE = 'sso_pending';
 const SSO_PENDING_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
@@ -69,6 +70,13 @@ export async function POST(request: NextRequest) {
     if (tokens.refresh_token) {
       const cookieName = refreshTokenCookieName(slot);
       cookieStore.set(cookieName, tokens.refresh_token, getCookieOptions());
+    }
+
+    // binarybeachio (mine.9): pin the edge identity at session-mint so the
+    // root middleware can detect identity switches at the oauth2-proxy edge.
+    const edgeSub = request.headers.get(EDGE_HEADER);
+    if (edgeSub) {
+      cookieStore.set(EDGE_SUB_COOKIE, edgeSub, edgeCookieOptions());
     }
 
     // Delete pending cookie

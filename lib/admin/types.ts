@@ -140,6 +140,16 @@ export const CONFIG_ENV_MAP: Record<string, { envVar: string; fileEnvVar?: strin
   // /oauth2/start?prompt=select_account on the auth-proxy host. Inert
   // when unset (defaults to false = upstream behavior).
   disableAddAccount: { envVar: 'DISABLE_ADD_ACCOUNT', type: 'boolean', defaultValue: false },
+  // binarybeachio (mine.9): URL the SPA navigates to on full-logout
+  // (`logout()` / `logoutAll()` after no accounts remain) and on session-
+  // expired redirects. When set, `redirectToLogin()` jumps here instead of
+  // the local `/<locale>/login` path. Used to bounce the user through the
+  // bridge's `/logout` endpoint, which clears the oauth2-proxy edge cookie
+  // AND the Zitadel session in one server-side back-channel call (see the
+  // 2026-05-04 session debrief at docs/services/auth-bridge/session-
+  // debrief-2026-05-04-edge-validation-and-logout.md). Inert when unset
+  // (defaults to upstream behavior — local login page).
+  bridgeLogoutUrl: { envVar: 'BRIDGE_LOGOUT_URL', type: 'url', defaultValue: '' },
   cookieSameSite: { envVar: 'COOKIE_SAME_SITE', type: 'enum', defaultValue: 'lax', enumValues: ['lax', 'strict', 'none'] },
   allowedFrameAncestors: { envVar: 'ALLOWED_FRAME_ANCESTORS', type: 'string', defaultValue: '' },
   parentOrigin: { envVar: 'NEXT_PUBLIC_PARENT_ORIGIN', type: 'string', defaultValue: '' },

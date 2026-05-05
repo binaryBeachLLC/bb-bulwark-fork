@@ -52,6 +52,7 @@ export async function GET() {
     allowCustomJmapEndpoint: configManager.get<boolean>('allowCustomJmapEndpoint', false),
     autoSsoEnabled: configManager.get<boolean>('autoSsoEnabled', false),
     disableAddAccount: configManager.get<boolean>('disableAddAccount', false),
+    bridgeLogoutUrl: configManager.get<string>('bridgeLogoutUrl', ''),
     embeddedMode: !!allowedFrameAncestors && allowedFrameAncestors !== "'none'",
     parentOrigin: configManager.get<string>('parentOrigin', ''),
   });

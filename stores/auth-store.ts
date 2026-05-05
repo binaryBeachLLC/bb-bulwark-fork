@@ -213,6 +213,24 @@ function saveRedirectAfterLogin(): void {
 export function redirectToLogin(): void {
   if (typeof window === 'undefined') return;
 
+  // binarybeachio (mine.9): when BRIDGE_LOGOUT_URL is configured, terminate
+  // the logout flow at the platform bridge instead of Bulwark's local /login
+  // page. The bridge's `/logout` handler clears the oauth2-proxy edge cookie
+  // AND Zitadel's session via back-channel end_session, then 302s the user
+  // to the embedded `rd=` target. Reads the cached config synchronously
+  // (populated by fetchConfig() at app boot — see hooks/use-config.ts).
+  // Inert when env unset = upstream behavior preserved.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cached = (typeof window !== 'undefined' ? (window as any).__bb_config_cache : null);
+  const fromCache = cached?.bridgeLogoutUrl as string | undefined;
+  // The exported `fetchConfig` cache is module-internal to use-config.ts; we
+  // mirror it onto window in fetchConfig so the auth-store can read it
+  // without an async dance during the synchronous logout flow.
+  if (fromCache) {
+    replaceWindowLocation(fromCache);
+    return;
+  }
+
   const loginPath = getLocaleLoginPath();
   if (window.location.pathname === loginPath) return;
   replaceWindowLocation(loginPath);

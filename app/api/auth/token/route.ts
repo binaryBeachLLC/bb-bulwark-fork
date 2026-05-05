@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger';
 import { refreshTokenCookieName } from '@/lib/oauth/tokens';
 import { exchangeCodeForTokens, buildOAuthParams, getMetadata, getTokenEndpoint } from '@/lib/oauth/token-exchange';
 import { getCookieOptions } from '@/lib/oauth/cookie-config';
+import { EDGE_SUB_COOKIE, EDGE_HEADER, edgeCookieOptions } from '@/lib/auth/bb-edge-identity';
 
 function getSlot(request: NextRequest): number {
   const raw = request.nextUrl.searchParams.get('slot');
@@ -34,6 +35,14 @@ export async function POST(request: NextRequest) {
       const cookieName = refreshTokenCookieName(slot);
       const cookieStore = await cookies();
       cookieStore.set(cookieName, tokens.refresh_token, getCookieOptions());
+    }
+
+    // binarybeachio (mine.9): pin the edge identity at session-mint so the
+    // root middleware can detect identity switches at the oauth2-proxy edge.
+    const edgeSub = request.headers.get(EDGE_HEADER);
+    if (edgeSub) {
+      const cookieStore = await cookies();
+      cookieStore.set(EDGE_SUB_COOKIE, edgeSub, edgeCookieOptions());
     }
 
     return response;

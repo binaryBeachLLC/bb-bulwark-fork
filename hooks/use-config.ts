@@ -32,6 +32,11 @@ interface ConfigData {
   // (oauth2-proxy + a "Switch BinaryBeach.io account" link that triggers
   // /oauth2/sign_out + /oauth2/start?prompt=select_account).
   disableAddAccount: boolean;
+  // binarybeachio (mine.9): platform logout URL. When set, the auth-store's
+  // `redirectToLogin()` navigates here instead of `/login`, threading the
+  // user through bridge.binarybeach.io/logout (clears edge + Zitadel
+  // session in one back-channel hop). Empty = upstream behavior.
+  bridgeLogoutUrl: string;
   allowCustomJmapEndpoint: boolean;
   embeddedMode: boolean;
   parentOrigin: string;
@@ -66,6 +71,17 @@ export async function fetchConfig(): Promise<ConfigData> {
     })
     .then((data) => {
       configCache = data;
+      // binarybeachio (mine.9): mirror the cache onto `window` so the
+      // auth-store's synchronous `redirectToLogin()` can read
+      // `bridgeLogoutUrl` without an async dance during logout. The
+      // auth-store cannot import this hook directly (it would create a
+      // module cycle), and zustand stores can't await fetches in their
+      // body. This is read-only from the consumer's side; only this file
+      // writes to it.
+      if (typeof window !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).__bb_config_cache = data;
+      }
       // Fetch admin policy alongside config (non-blocking)
       usePolicyStore.getState().fetchPolicy();
       return data;
@@ -110,6 +126,7 @@ export function useConfig(): AppConfig {
     demoMode: configCache?.demoMode || false,
     autoSsoEnabled: configCache?.autoSsoEnabled || false,
     disableAddAccount: configCache?.disableAddAccount || false,
+    bridgeLogoutUrl: configCache?.bridgeLogoutUrl || '',
     allowCustomJmapEndpoint: configCache?.allowCustomJmapEndpoint || false,
     embeddedMode: configCache?.embeddedMode || false,
     parentOrigin: configCache?.parentOrigin || '',
@@ -144,6 +161,7 @@ export function useConfig(): AppConfig {
         demoMode: configCache.demoMode,
         autoSsoEnabled: configCache.autoSsoEnabled,
         disableAddAccount: configCache.disableAddAccount,
+        bridgeLogoutUrl: configCache.bridgeLogoutUrl,
         allowCustomJmapEndpoint: configCache.allowCustomJmapEndpoint,
         embeddedMode: configCache.embeddedMode,
         parentOrigin: configCache.parentOrigin,
@@ -179,6 +197,7 @@ export function useConfig(): AppConfig {
           demoMode: data.demoMode,
           autoSsoEnabled: data.autoSsoEnabled,
           disableAddAccount: data.disableAddAccount,
+          bridgeLogoutUrl: data.bridgeLogoutUrl,
           allowCustomJmapEndpoint: data.allowCustomJmapEndpoint,
           embeddedMode: data.embeddedMode,
           parentOrigin: data.parentOrigin,
